@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>都市別人口データ ダッシュボード</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', 'Hiragino Sans', 'Noto Sans JP', sans-serif;
+            background: linear-gradient(135deg, #e8f0fe 0%, #f5f0ff 50%, #fef4e8 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #333;
+        }
+        .header {
+            text-align: center;
+            padding: 30px 20px 10px;
+            margin-bottom: 10px;
+        }
+        .header h1 {
+            font-size: 2rem;
+            background: linear-gradient(90deg, #4a6cf7, #6a3de8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 8px;
+        }
+        .header p {
+            color: #666;
+            font-size: 0.95rem;
+        }
+        .dashboard {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 28px;
+        }
+        .card {
+            background: rgba(255, 255, 255, 0.92);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            padding: 28px;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.06);
+            border: 1px solid rgba(255,255,255,0.6);
+            transition: transform 0.2s;
+        }
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.10);
+        }
+        .card h2 {
+            font-size: 1.15rem;
+            color: #4a5568;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e2e8f0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .card h2 .icon {
+            font-size: 1.3rem;
+        }
+        .chart-container {
+            position: relative;
+            height: 420px;
+            width: 100%;
+        }
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 28px;
+        }
+        @media (max-width: 900px) {
+            .grid-2 {
+                grid-template-columns: 1fr;
+            }
+        }
+        .footer {
+            text-align: center;
+            padding: 30px 0 10px;
+            color: #999;
+            font-size: 0.8rem;
+        }
+        .summary-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 14px;
+            margin-bottom: 10px;
+            justify-content: center;
+        }
+        .summary-card {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: #fff;
+            border-radius: 12px;
+            padding: 14px 22px;
+            min-width: 160px;
+            text-align: center;
+        }
+        .summary-card .label {
+            font-size: 0.78rem;
+            opacity: 0.85;
+        }
+        .summary-card .value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-top: 4px;
+        }
+        /* Loading overlay */
+        .loading-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(255,255,255,0.85);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            transition: opacity 0.4s;
+        }
+        .loading-overlay.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+        .spinner {
+            width: 48px;
+            height: 48px;
+            border: 5px solid #e2e8f0;
+            border-top: 5px solid #4a6cf7;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-bottom: 16px;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .loading-text {
+            color: #555;
+            font-size: 1rem;
+        }
+        /* Error message */
+        .error-message {
+            display: none;
+            max-width: 600px;
+            margin: 80px auto;
+            background: #fff5f5;
+            border: 1px solid #fc8181;
+            border-radius: 12px;
+            padding: 24px;
+            text-align: center;
+            color: #c53030;
+        }
+        .error-message h2 {
+            margin-bottom: 8px;
+            border: none;
+            justify-content: center;
+            color: #c53030;
+        }
+        .error-message p {
+            color: #744210;
+            font-size: 0.9rem;
+            line-height: 1.7;
+        }
+        .error-message code {
+            background: #fed7d7;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.85rem;
+        }
+    </style>
+</head>
+<body>
+    <!-- Loading overlay -->
+    <div class="loading-overlay" id="loading">
+        <div class="spinner"></div>
+        <div class="loading-text">データを読み込み中...</div>
+    </div>
+
+    <!-- Error message (hidden by default) -->
+    <div class="error-message" id="errorMsg">
+        <h2>⚠️ データ読み込みエラー</h2>
+        <p id="errorDetail"></p>
+    </div>
+
+    <div id="mainContent" style="display:none;">
+        <div class="header">
+            <h1>📊 都市別人口データ ダッシュボード</h1>
+            <p>10都市の人口構成を男女別・年齢階級別に可視化</p>
+        </div>
+
+        <div class="dashboard">
+            <!-- Summary Cards -->
+            <div class="summary-row" id="summaryRow"></div>
+
+            <!-- Chart 1: Total Population -->
+            <div class="card">
+                <h2><span class="icon">🏙️</span> 都市別 総人口比較</h2>
+                <div class="chart-container">
+                    <canvas id="chart1"></canvas>
+                </div>
+            </div>
+
+            <!-- Chart 2: Male vs Female -->
+            <div class="card">
+                <h2><span class="icon">👫</span> 都市別 男女別人口比較</h2>
+                <div class="chart-container">
+                    <canvas id="chart2"></canvas>
+                </div>
+            </div>
+
+            <div class="grid-2">
+                <!-- Chart 3: Age Group Stacked -->
+                <div class="card">
+                    <h2><span class="icon">📈</span> 年齢階級別人口（実数）</h2>
+                    <div class="chart-container" style="height:480px;">
+                        <canvas id="chart3"></canvas>
+                    </div>
+                </div>
+
+                <!-- Chart 4: 100% Stacked -->
+                <div class="card">
+                    <h2><span class="icon">📊</span> 年齢階級別人口（構成比 %）</h2>
+                    <div class="chart-container" style="height:480px;">
+                        <canvas id="chart4"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer">
+            データ出典: TABLE01 男女別人口.json / TABLE03 年齢階級別人口.json
+        </div>
+    </div>
+
+    <script>
+        // ============================================================
+        // JSONファイルを同一ディレクトリから fetch() で読み込み
+        // GitHub Pages等にアップロードする場合は、HTMLと同じ階層に
+        //   - TABLE01 男女別人口.json
+        //   - TABLE03 年齢階級別人口.json
+        // を配置してください。
+        // ============================================================
+
+        async function init() {
+            try {
+                // --- JSON読み込み ---
+                const [res1, res2] = await Promise.all([
+                    fetch('TABLE01 男女別人口.json'),
+                    fetch('TABLE03 年齢階級別人口.json')
+                ]);
+
+                if (!res1.ok) throw new Error(`TABLE01 男女別人口.json の読み込みに失敗しました (HTTP ${res1.status})`);
+                if (!res2.ok) throw new Error(`TABLE03 年齢階級別人口.json の読み込みに失敗しました (HTTP ${res2.status})`);
+
+                const genderData = await res1.json();
+                const ageData = await res2.json();
+
+                // --- 性別データのパース ---
+                const citiesTotal = {}, citiesMale = {}, citiesFemale = {};
+                for (const [city, type, , pop] of genderData) {
+                    const p = parseInt(pop);
+                    if (type === '男女計') citiesTotal[city] = p;
+                    else if (type === '男') citiesMale[city] = p;
+                    else if (type === '女') citiesFemale[city] = p;
+                }
+
+                // --- 年齢データのパース ---
+                const citiesYoung = {}, citiesWorking = {}, citiesElderly = {}, citiesLateElderly = {};
+                for (const [city, category, , pop] of ageData) {
+                    const p = parseInt(pop);
+                    if (category.includes('年少人口')) citiesYoung[city] = p;
+                    else if (category.includes('生産年齢人口')) citiesWorking[city] = p;
+                    else if (category.includes('老年人口')) citiesElderly[city] = p;
+                    else if (category.includes('後期高齢者数')) citiesLateElderly[city] = p;
+                }
+
+                // --- 総人口降順でソート ---
+                const sortedCities = Object.keys(citiesTotal).sort((a, b) => citiesTotal[b] - citiesTotal[a]);
+
+                // --- 短縮名（市名のみ）---
+                const shortName = (city) => {
+                    if (city.includes('県')) return city.split('県')[1];
+                    if (city.includes('道')) return city.split('道')[1];
+                    return city;
+                };
+
+                const labels = sortedCities.map(shortName);
+                const fullNames = sortedCities;
+                const totalPops = sortedCities.map(c => citiesTotal[c]);
+                const malePops = sortedCities.map(c => citiesMale[c]);
+                const femalePops = sortedCities.map(c => citiesFemale[c]);
+                const youngPops = sortedCities.map(c => citiesYoung[c]);
+                const workingPops = sortedCities.map(c => citiesWorking[c]);
+                const earlyElderlyPops = sortedCities.map(c => citiesElderly[c] - citiesLateElderly[c]);
+                const lateElderlyPops = sortedCities.map(c => citiesLateElderly[c]);
+
+                // 構成比
+                const youngRatio = [], workingRatio = [], earlyElderlyRatio = [], lateElderlyRatio = [];
+                for (const c of sortedCities) {
+                    const total = citiesYoung[c] + citiesWorking[c] + citiesElderly[c];
+                    youngRatio.push(Math.round(citiesYoung[c] / total * 1000) / 10);
+                    workingRatio.push(Math.round(citiesWorking[c] / total * 1000) / 10);
+                    earlyElderlyRatio.push(Math.round((citiesElderly[c] - citiesLateElderly[c]) / total * 1000) / 10);
+                    lateElderlyRatio.push(Math.round(citiesLateElderly[c] / total * 1000) / 10);
+                }
+
+                const sumTotal = totalPops.reduce((a, b) => a + b, 0);
+                const avgTotal = Math.floor(sumTotal / totalPops.length);
+                const tooltipTitle = (items) => fullNames[items[0].dataIndex];
+
+                // --- サマリーカード描画 ---
+                document.getElementById('summaryRow').innerHTML = `
+                    <div class="summary-card">
+                        <div class="label">対象都市数</div>
+                        <div class="value">${sortedCities.length}</div>
+                    </div>
+                    <div class="summary-card" style="background: linear-gradient(135deg, #f093fb, #f5576c);">
+                        <div class="label">合計人口</div>
+                        <div class="value">${sumTotal.toLocaleString()}</div>
+                    </div>
+                    <div class="summary-card" style="background: linear-gradient(135deg, #4facfe, #00f2fe);">
+                        <div class="label">最大人口都市</div>
+                        <div class="value">${labels[0]}</div>
+                    </div>
+                    <div class="summary-card" style="background: linear-gradient(135deg, #43e97b, #38f9d7);">
+                        <div class="label">平均人口</div>
+                        <div class="value">${avgTotal.toLocaleString()}</div>
+                    </div>
+                `;
+
+                // ==================== グラフ描画 ====================
+
+                // --- Chart 1: 総人口 ---
+                new Chart(document.getElementById('chart1'), {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: '総人口（人）',
+                            data: totalPops,
+                            backgroundColor: [
+                                '#4a6cf7', '#6a3de8', '#f5576c', '#4facfe',
+                                '#43e97b', '#fa709a', '#fee140', '#a18cd1',
+                                '#fbc2eb', '#84fab0'
+                            ],
+                            borderRadius: 8,
+                            borderSkipped: false,
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                callbacks: {
+                                    title: tooltipTitle,
+                                    label: (ctx) => `人口: ${ctx.raw.toLocaleString()} 人`
+                                }
+                            },
+                            datalabels: {
+                                anchor: 'end',
+                                align: 'top',
+                                font: { size: 11, weight: 'bold' },
+                                formatter: (v) => v.toLocaleString(),
+                                color: '#555'
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: { callback: (v) => v.toLocaleString() + ' 人' },
+                                grid: { color: 'rgba(0,0,0,0.05)' }
+                            },
+                            x: { grid: { display: false } }
+                        }
+                    },
+                    plugins: [ChartDataLabels]
+                });
+
+                // --- Chart 2: 男女別 ---
+                new Chart(document.getElementById('chart2'), {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: [
+                            {
+                                label: '男性',
+                                data: malePops,
+                                backgroundColor: 'rgba(74, 108, 247, 0.75)',
+                                borderRadius: 6,
+                                borderSkipped: false,
+                            },
+                            {
+                                label: '女性',
+                                data: femalePops,
+                                backgroundColor: 'rgba(245, 87, 108, 0.75)',
+                                borderRadius: 6,
+                                borderSkipped: false,
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'top',
+                                labels: { usePointStyle: true, padding: 20 }
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    title: tooltipTitle,
+                                    label: (ctx) => `${ctx.dataset.label}: ${ctx.raw.toLocaleString()} 人`
+                                }
+                            },
+                            datalabels: { display: false }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: { callback: (v) => v.toLocaleString() + ' 人' },
+                                grid: { color: 'rgba(0,0,0,0.05)' }
+                            },
+                            x: { grid: { display: false } }
+                        }
+                    }
+                });
+
+                // --- Chart 3: 年齢階級別（実数・横型積み上げ）---
+                new Chart(document.getElementById('chart3'), {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: [
+                            {
+                                label: '年少人口（0〜14歳）',
+                                data: youngPops,
+                                backgroundColor: 'rgba(67, 233, 123, 0.8)',
+                                borderRadius: 2,
+                            },
+                            {
+                                label: '生産年齢人口（15〜64歳）',
+                                data: workingPops,
+                                backgroundColor: 'rgba(79, 172, 254, 0.8)',
+                                borderRadius: 2,
+                            },
+                            {
+                                label: '前期高齢者（65〜74歳）',
+                                data: earlyElderlyPops,
+                                backgroundColor: 'rgba(250, 112, 154, 0.8)',
+                                borderRadius: 2,
+                            },
+                            {
+                                label: '後期高齢者（75歳以上）',
+                                data: lateElderlyPops,
+                                backgroundColor: 'rgba(161, 140, 209, 0.8)',
+                                borderRadius: 2,
+                            }
+                        ]
+                    },
+                    options: {
+                        indexAxis: 'y',
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'top',
+                                labels: { usePointStyle: true, padding: 12, font: { size: 11 } }
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    title: tooltipTitle,
+                                    label: (ctx) => `${ctx.dataset.label}: ${ctx.raw.toLocaleString()} 人`
+                                }
+                            },
+                            datalabels: { display: false }
+                        },
+                        scales: {
+                            x: {
+                                stacked: true,
+                                ticks: { callback: (v) => v.toLocaleString() },
+                                grid: { color: 'rgba(0,0,0,0.05)' }
+                            },
+                            y: { stacked: true, grid: { display: false } }
+                        }
+                    }
+                });
+
+                // --- Chart 4: 年齢階級別（構成比・横型100%積み上げ）---
+                new Chart(document.getElementById('chart4'), {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: [
+                            {
+                                label: '年少人口（0〜14歳）',
+                                data: youngRatio,
+                                backgroundColor: 'rgba(67, 233, 123, 0.8)',
+                                borderRadius: 2,
+                            },
+                            {
+                                label: '生産年齢人口（15〜64歳）',
+                                data: workingRatio,
+                                backgroundColor: 'rgba(79, 172, 254, 0.8)',
+                                borderRadius: 2,
+                            },
+                            {
+                                label: '前期高齢者（65〜74歳）',
+                                data: earlyElderlyRatio,
+                                backgroundColor: 'rgba(250, 112, 154, 0.8)',
+                                borderRadius: 2,
+                            },
+                            {
+                                label: '後期高齢者（75歳以上）',
+                                data: lateElderlyRatio,
+                                backgroundColor: 'rgba(161, 140, 209, 0.8)',
+                                borderRadius: 2,
+                            }
+                        ]
+                    },
+                    options: {
+                        indexAxis: 'y',
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'top',
+                                labels: { usePointStyle: true, padding: 12, font: { size: 11 } }
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    title: tooltipTitle,
+                                    label: (ctx) => `${ctx.dataset.label}: ${ctx.raw} %`
+                                }
+                            },
+                            datalabels: { display: false }
+                        },
+                        scales: {
+                            x: {
+                                stacked: true,
+                                max: 100,
+                                ticks: { callback: (v) => v + ' %' },
+                                grid: { color: 'rgba(0,0,0,0.05)' }
+                            },
+                            y: { stacked: true, grid: { display: false } }
+                        }
+                    }
+                });
+
+                // --- 表示切替 ---
+                document.getElementById('loading').classList.add('hidden');
+                document.getElementById('mainContent').style.display = 'block';
+
+            } catch (err) {
+                document.getElementById('loading').classList.add('hidden');
+                const errorDiv = document.getElementById('errorMsg');
+                errorDiv.style.display = 'block';
+                document.getElementById('errorDetail').innerHTML =
+                    `JSONファイルの読み込みに失敗しました。<br><br>` +
+                    `<strong>エラー内容:</strong> <code>${err.message}</code><br><br>` +
+                    `以下のファイルがHTMLと<strong>同じディレクトリ</strong>に配置されていることを確認してください:<br>` +
+                    `・<code>TABLE01 男女別人口.json</code><br>` +
+                    `・<code>TABLE03 年齢階級別人口.json</code><br><br>` +
+                    `※ ローカル環境では、ローカルサーバー（例: <code>python -m http.server</code>）経由で開いてください。`;
+            }
+        }
+
+        // 初期化実行
+        init();
+    </script>
+</body>
+</html>
