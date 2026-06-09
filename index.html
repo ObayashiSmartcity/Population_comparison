@@ -220,13 +220,13 @@
         // ============================================================
 
         // カラーパレット：青・緑系（富山市のみハイライト）
-        // 富山市 = #FFD600（ゴールド）、その他 = 青緑系
+        // 富山市 = #FF1744（レッド）、その他 = 青緑系
         const BLUE_GREEN_PALETTE = [
             '#00e5ff', '#00bfa5', '#1de9b6', '#00b0ff',
             '#0091ea', '#26a69a', '#2979ff', '#00c853',
             '#18ffff', '#64ffda'
         ];
-        const HIGHLIGHT_COLOR = '#FFD600';  // 富山市ハイライト
+        const HIGHLIGHT_COLOR = '#FF1744';  // 富山市ハイライト
 
         function getCityColors(labels) {
             return labels.map(name => name === '富山市' ? HIGHLIGHT_COLOR : BLUE_GREEN_PALETTE[labels.indexOf(name) % BLUE_GREEN_PALETTE.length]);
@@ -305,15 +305,15 @@
                 const chart1Colors = getCityColors(labels);
 
                 // Chart 2用：男女別（富山市だけハイライト）
-                const maleColors = labels.map(name => name === '富山市' ? '#FFD600' : 'rgba(0, 176, 255, 0.75)');
-                const femaleColors = labels.map(name => name === '富山市' ? '#FFAB00' : 'rgba(0, 230, 118, 0.75)');
+                const maleColors = labels.map(name => name === '富山市' ? '#FF1744' : 'rgba(0, 176, 255, 0.75)');
+                const femaleColors = labels.map(name => name === '富山市' ? '#FF6E40' : 'rgba(0, 230, 118, 0.75)');
 
                 // Chart 3&4用：年齢層別カラー
                 const ageColors = {
-                    young:        { normal: 'rgba(0, 230, 118, 0.8)',  highlight: 'rgba(255, 214, 0, 0.9)' },
-                    working:      { normal: 'rgba(0, 176, 255, 0.8)',  highlight: 'rgba(255, 171, 0, 0.9)' },
-                    earlyElderly: { normal: 'rgba(0, 191, 165, 0.8)',  highlight: 'rgba(255, 214, 0, 0.7)' },
-                    lateElderly:  { normal: 'rgba(41, 121, 255, 0.8)', highlight: 'rgba(255, 171, 0, 0.7)' }
+                    young:        { normal: 'rgba(0, 230, 118, 0.8)',  highlight: 'rgba(255, 23, 68, 0.9)' },
+                    working:      { normal: 'rgba(0, 176, 255, 0.8)',  highlight: 'rgba(255, 110, 64, 0.9)' },
+                    earlyElderly: { normal: 'rgba(0, 191, 165, 0.8)',  highlight: 'rgba(255, 23, 68, 0.7)' },
+                    lateElderly:  { normal: 'rgba(41, 121, 255, 0.8)', highlight: 'rgba(255, 110, 64, 0.7)' }
                 };
 
                 function ageBarColors(colorSet) {
@@ -356,7 +356,7 @@
                                 align: 'top',
                                 font: { size: 11, weight: 'bold' },
                                 formatter: (v) => v.toLocaleString(),
-                                color: (ctx) => labels[ctx.dataIndex] === '富山市' ? '#FFD600' : '#8899aa'
+                                color: (ctx) => labels[ctx.dataIndex] === '富山市' ? '#FF1744' : '#8899aa'
                             }
                         },
                         scales: {
@@ -368,7 +368,7 @@
                             x: {
                                 grid: { display: false },
                                 ticks: {
-                                    color: (ctx) => labels[ctx.index] === '富山市' ? '#FFD600' : '#8899aa',
+                                    color: (ctx) => labels[ctx.index] === '富山市' ? '#FF1744' : '#8899aa',
                                     font: (ctx) => ({ weight: labels[ctx.index] === '富山市' ? 'bold' : 'normal' })
                                 }
                             }
@@ -429,7 +429,7 @@
                             x: {
                                 grid: { display: false },
                                 ticks: {
-                                    color: (ctx) => labels[ctx.index] === '富山市' ? '#FFD600' : '#8899aa',
+                                    color: (ctx) => labels[ctx.index] === '富山市' ? '#FF1744' : '#8899aa',
                                     font: (ctx) => ({ weight: labels[ctx.index] === '富山市' ? 'bold' : 'normal' })
                                 }
                             }
@@ -501,7 +501,7 @@
                                 stacked: true,
                                 grid: { display: false },
                                 ticks: {
-                                    color: (ctx) => labels[ctx.index] === '富山市' ? '#FFD600' : '#8899aa',
+                                    color: (ctx) => labels[ctx.index] === '富山市' ? '#FF1744' : '#8899aa',
                                     font: (ctx) => ({ weight: labels[ctx.index] === '富山市' ? 'bold' : 'normal' })
                                 }
                             }
@@ -574,7 +574,7 @@
                                 stacked: true,
                                 grid: { display: false },
                                 ticks: {
-                                    color: (ctx) => labels[ctx.index] === '富山市' ? '#FFD600' : '#8899aa',
+                                    color: (ctx) => labels[ctx.index] === '富山市' ? '#FF1744' : '#8899aa',
                                     font: (ctx) => ({ weight: labels[ctx.index] === '富山市' ? 'bold' : 'normal' })
                                 }
                             }
